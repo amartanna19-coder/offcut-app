@@ -188,6 +188,11 @@ export default function BrowseScreen({ userId }) {
             <View style={styles.tagRow}>
               <Text style={styles.tag}>{item.category}</Text>
               <Text style={styles.tag}>{item.condition}</Text>
+              {item.material_age === 'post_2000' ? null : (
+                <Text style={styles.ageWarning}>
+                  {item.material_age === 'pre_2000' ? 'Pre-2000 · check for asbestos' : 'Age unknown · check first'}
+                </Text>
+              )}
             </View>
 
             <View style={styles.metaRow}>
@@ -400,6 +405,16 @@ const styles = StyleSheet.create({
     color: colors.muted,
     borderWidth: 1,
     borderColor: colors.line,
+    borderRadius: radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    overflow: 'hidden',
+  },
+  ageWarning: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.danger,
+    backgroundColor: '#fef2f2',
     borderRadius: radius.sm,
     paddingHorizontal: 6,
     paddingVertical: 1,

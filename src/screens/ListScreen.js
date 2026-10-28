@@ -3,7 +3,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../supabase';
-import { AREAS, CATEGORIES, CONDITIONS } from '../constants';
+import { AREAS, CATEGORIES, CONDITIONS, HAZARD_CONFIRM, HAZARD_WARNING, MATERIAL_AGES } from '../constants';
 import { colors, radius, shadow, space } from '../theme';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -32,9 +32,14 @@ export default function ListScreen({ userId, onPosted }) {
   const [price, setPrice] = useState('0');
   const [condition, setCondition] = useState(CONDITIONS[0]);
   const [area, setArea] = useState(AREAS[0]);
+  const [materialAge, setMaterialAge] = useState(null); // 'post_2000' | 'pre_2000' | 'unknown'
+  const [hazardChecked, setHazardChecked] = useState(false);
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState(null); // { uri, width, height }
   const [busy, setBusy] = useState(false);
+
+  // Older or unclear materials need the warning and a confirmation before they can be posted.
+  const needsHazardCheck = materialAge === 'pre_2000' || materialAge === 'unknown';
 
   async function pickPhoto() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -71,6 +76,14 @@ export default function ListScreen({ userId, onPosted }) {
       Alert.alert('Add a description', 'Say what it is in a few words, e.g. "3 boxes floor tiles 600x600".');
       return;
     }
+    if (!materialAge) {
+      Alert.alert('How old is it?', 'Choose post-2000, pre-2000, or not sure. This helps keep people safe.');
+      return;
+    }
+    if (needsHazardCheck && !hazardChecked) {
+      Alert.alert('Check before listing', 'Tick the box to confirm this isn’t asbestos or another hazardous material.');
+      return;
+    }
     if (!photo) {
       Alert.alert('Add a photo', 'Listings with a clear photo get claimed faster.', [
         { text: 'Post without photo', onPress: () => post(priceNum, null) },
@@ -91,6 +104,7 @@ export default function ListScreen({ userId, onPosted }) {
         price: priceNum,
         condition,
         area,
+        material_age: materialAge,
         notes: notes.trim() || 'Pickup by arrangement.',
         photo_path: photoPath,
         lister_id: userId,
@@ -102,6 +116,8 @@ export default function ListScreen({ userId, onPosted }) {
       setPrice('0');
       setNotes('');
       setPhoto(null);
+      setMaterialAge(null);
+      setHazardChecked(false);
       onPosted();
     } catch (err) {
       Alert.alert('Could not post', err.message || 'Something went wrong. Try again.');
@@ -150,6 +166,44 @@ export default function ListScreen({ userId, onPosted }) {
         />
 
         <Chooser label="Condition" options={CONDITIONS} value={condition} onChange={setCondition} />
+
+        <Text style={styles.label}>How old is it?</Text>
+        <View style={styles.options}>
+          {MATERIAL_AGES.map((a) => {
+            const on = materialAge === a.key;
+            return (
+              <Pressable
+                key={a.key}
+                onPress={() => {
+                  setMaterialAge(a.key);
+                  setHazardChecked(false);
+                }}
+                style={[styles.opt, on && styles.optOn]}
+              >
+                <Text style={[styles.optText, on && styles.optTextOn]}>{a.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {needsHazardCheck ? (
+          <View style={styles.warning}>
+            <View style={styles.warningHead}>
+              <Ionicons name="warning-outline" size={18} color={colors.danger} />
+              <Text style={styles.warningTitle}>Possible asbestos</Text>
+            </View>
+            <Text style={styles.warningText}>{HAZARD_WARNING}</Text>
+            <Pressable style={styles.checkRow} onPress={() => setHazardChecked(!hazardChecked)}>
+              <Ionicons
+                name={hazardChecked ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={hazardChecked ? colors.accent : colors.muted}
+              />
+              <Text style={styles.checkText}>{HAZARD_CONFIRM}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <Chooser label="Nearest area" options={AREAS} value={area} onChange={setArea} />
 
         <Text style={styles.label}>Pickup notes</Text>
@@ -223,6 +277,19 @@ const styles = StyleSheet.create({
   optOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   optText: { color: colors.text, fontSize: 14 },
   optTextOn: { color: colors.card, fontWeight: '600' },
+  warning: {
+    marginTop: space.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    backgroundColor: '#fef2f2',
+    padding: space.md,
+  },
+  warningHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  warningTitle: { fontSize: 14, fontWeight: '700', color: colors.danger },
+  warningText: { fontSize: 13, color: colors.text, lineHeight: 19, marginTop: space.sm },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.md },
+  checkText: { flex: 1, fontSize: 13, color: colors.text, fontWeight: '600' },
   submit: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -85,6 +85,13 @@ alter table public.listings add constraint listings_status_check
 alter table public.listings add column if not exists claimed_at timestamptz;
 alter table public.listings add column if not exists collect_by timestamptz;
 
+-- Columns added in v4: how old the material is (asbestos safety). Existing rows stay null,
+-- and the app treats null as "not sure".
+alter table public.listings add column if not exists material_age text;
+alter table public.listings drop constraint if exists listings_material_age_check;
+alter table public.listings add constraint listings_material_age_check
+  check (material_age in ('post_2000', 'pre_2000', 'unknown'));
+
 create index if not exists listings_status_created_idx on public.listings (status, created_at desc);
 create index if not exists listings_lister_idx on public.listings (lister_id);
 create index if not exists listings_claimer_idx on public.listings (claimed_by);
