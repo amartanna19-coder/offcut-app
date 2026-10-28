@@ -3,6 +3,17 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { supabase } from '../supabase';
 import { AREAS, ROLES, priceLabel } from '../constants';
 
+function formatDeadline(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function Chooser({ label, options, value, onChange }) {
   return (
     <View>
@@ -19,14 +30,14 @@ function Chooser({ label, options, value, onChange }) {
 }
 
 function ProfileForm({ userId }) {
-  const [profile, setProfile] = useState({ display_name: '', role: ROLES[1], trade: '', area: AREAS[0] });
+  const [profile, setProfile] = useState({ display_name: '', role: ROLES[1], trade: '', area: AREAS[0], completed_count: 0 });
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     supabase
       .from('profiles')
-      .select('display_name, role, trade, area')
+      .select('display_name, role, trade, area, completed_count')
       .eq('id', userId)
       .single()
       .then(({ data }) => {
@@ -65,6 +76,9 @@ function ProfileForm({ userId }) {
         <Text style={styles.meta}>
           {profile.role}
           {profile.trade ? ` · ${profile.trade}` : ''} · {profile.area}
+        </Text>
+        <Text style={styles.meta}>
+          {profile.completed_count} completed {profile.completed_count === 1 ? 'collection' : 'collections'}
         </Text>
         <Pressable style={styles.smallBtn} onPress={() => setOpen(true)}>
           <Text style={styles.smallBtnText}>Edit profile</Text>
@@ -118,7 +132,7 @@ export default function MineScreen({ userId }) {
         .order('created_at', { ascending: false }),
       supabase
         .from('listings')
-        .select('*')
+        .select('*, claimer:profiles!claimed_by(display_name)')
         .eq('lister_id', userId)
         .neq('status', 'removed')
         .order('created_at', { ascending: false }),
@@ -148,6 +162,21 @@ export default function MineScreen({ userId }) {
             .eq('id', item.id)
             .eq('claimed_by', userId);
           if (err) Alert.alert('Could not cancel', err.message);
+          else load();
+        },
+      },
+    ]);
+  }
+
+  // Lister confirms the outcome. Both actions go through database functions that update counts.
+  async function recordOutcome(item, fn, title, message) {
+    Alert.alert(title, message, [
+      { text: 'Back', style: 'cancel' },
+      {
+        text: 'Confirm',
+        onPress: async () => {
+          const { error: err } = await supabase.rpc(fn, { p_listing: item.id });
+          if (err) Alert.alert('Could not update', err.message);
           else load();
         },
       },
@@ -184,15 +213,20 @@ export default function MineScreen({ userId }) {
       {claims.map((it) => (
         <View key={it.id} style={styles.card}>
           <Text style={styles.cardTitle}>{it.title}</Text>
-          <Text style={styles.claimed}>Arrange pickup with {it.lister?.display_name || 'the lister'}.</Text>
+          {it.status === 'claimed' ? (
+            <>
+              <Text style={styles.claimed}>Arrange pickup with {it.lister?.display_name || 'the lister'}.</Text>
+              <Text style={styles.deadline}>Collect by {formatDeadline(it.collect_by)}</Text>
+              <Pressable style={styles.smallBtn} onPress={() => cancelClaim(it)}>
+                <Text style={styles.smallBtnText}>Cancel claim</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Text style={styles.meta}>{it.status === 'collected' ? 'Collected' : 'No longer claimed'}</Text>
+          )}
           <Text style={styles.meta}>
             {priceLabel(it.price)} · {it.area}
           </Text>
-          {it.status === 'claimed' ? (
-            <Pressable style={styles.smallBtn} onPress={() => cancelClaim(it)}>
-              <Text style={styles.smallBtnText}>Cancel claim</Text>
-            </Pressable>
-          ) : null}
         </View>
       ))}
 
@@ -201,9 +235,36 @@ export default function MineScreen({ userId }) {
       {listings.map((it) => (
         <View key={it.id} style={styles.card}>
           <Text style={styles.cardTitle}>{it.title}</Text>
-          <Text style={styles.meta}>
-            {it.status === 'claimed' ? 'Claimed' : 'Live'} · {priceLabel(it.price)}
-          </Text>
+
+          {it.status === 'claimed' ? (
+            <>
+              <Text style={styles.claimed}>Claimed by {it.claimer?.display_name || 'a member'}</Text>
+              <Text style={styles.deadline}>Collect by {formatDeadline(it.collect_by)}</Text>
+              <View style={styles.btnRow}>
+                <Pressable
+                  style={[styles.smallBtn, styles.primarySmall]}
+                  onPress={() =>
+                    recordOutcome(it, 'mark_collected', 'Mark as collected?', 'The claimer gets a completed collection on their profile.')
+                  }
+                >
+                  <Text style={styles.primarySmallText}>Collected</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.smallBtn}
+                  onPress={() =>
+                    recordOutcome(it, 'mark_no_show', 'Claimer did not turn up?', 'The item goes back to Browse and the claimer gets a no-show.')
+                  }
+                >
+                  <Text style={styles.smallBtnText}>No-show</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.meta}>
+              {it.status === 'collected' ? 'Collected' : 'Live'} · {priceLabel(it.price)}
+            </Text>
+          )}
+
           {it.status === 'available' ? (
             <Pressable style={styles.smallBtn} onPress={() => remove(it)}>
               <Text style={[styles.smallBtnText, { color: '#b91c1c' }]}>Remove</Text>
@@ -224,6 +285,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#e4e2dc', padding: 14, marginBottom: 10 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: '#1d1d1b' },
   claimed: { color: '#15803d', fontWeight: '600', marginTop: 4 },
+  deadline: { color: '#b45309', fontWeight: '600', marginTop: 4 },
   meta: { fontSize: 13, color: '#6b6a66', marginTop: 4 },
   input: { borderWidth: 1, borderColor: '#e4e2dc', backgroundColor: '#f6f5f2', borderRadius: 10, padding: 12, fontSize: 16 },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -231,8 +293,11 @@ const styles = StyleSheet.create({
   optOn: { backgroundColor: '#c2410c', borderColor: '#c2410c' },
   optText: { color: '#1d1d1b', fontSize: 14 },
   optTextOn: { color: '#ffffff' },
+  btnRow: { flexDirection: 'row', gap: 8 },
   smallBtn: { alignSelf: 'flex-start', marginTop: 10, borderWidth: 1, borderColor: '#e4e2dc', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   smallBtnText: { color: '#1d1d1b' },
+  primarySmall: { backgroundColor: '#c2410c', borderColor: '#c2410c' },
+  primarySmallText: { color: '#ffffff', fontWeight: '600' },
   submit: { backgroundColor: '#c2410c', borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 16 },
   submitText: { color: '#ffffff', fontWeight: '600' },
   disabled: { opacity: 0.5 },

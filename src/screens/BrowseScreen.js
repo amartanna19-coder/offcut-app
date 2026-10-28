@@ -101,7 +101,14 @@ export default function BrowseScreen({ userId }) {
       .select();
 
     if (err) {
-      Alert.alert('Could not claim', err.message);
+      // Row-level security rejects the claim when the member is blocked for no-shows.
+      const blocked = /row-level security/i.test(err.message);
+      Alert.alert(
+        'Could not claim',
+        blocked
+          ? 'You can’t claim items right now because of missed collections. Get in touch if you think this is wrong.'
+          : err.message
+      );
       return;
     }
     if (!data || data.length === 0) {
@@ -109,14 +116,17 @@ export default function BrowseScreen({ userId }) {
       refresh();
       return;
     }
-    Alert.alert('Claimed', 'Find it under My activity for pickup details and to cancel if needed.');
+    Alert.alert(
+      'Claimed',
+      'Collect within 48 hours, or the claim expires and counts as a missed collection. Find it under My activity.'
+    );
     refresh();
   }
 
   function confirmClaim(item) {
     Alert.alert(
       'Claim this item?',
-      `"${item.title}". You'll arrange pickup and payment with ${item.lister?.display_name || 'the lister'}. Offcut does not handle payments.`,
+      `"${item.title}". Collect within 48 hours. Arrange pickup and any payment with ${item.lister?.display_name || 'the lister'}. Offcut does not handle payments.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Claim', onPress: () => claim(item) },

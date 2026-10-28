@@ -12,6 +12,8 @@ MVP marketplace. Working features:
 - Browse live listings with search, category filters, and sort (newest or price). Results load in pages of 20 as you scroll.
 - Photos on listings, uploaded from the phone and capped at 5 MB.
 - Claim an item. Only one person can claim it, and the database enforces this.
+- Collection window: a claim must be collected within 48 hours. If it isn't, the item returns to Browse automatically and the claimer gets a no-show. A scheduler checks every 15 minutes, using Supabase's `pg_cron`.
+- Listers mark each claim as **Collected** or **No-show**. Collected claims add to the claimer's completed count. Claimers with 3 or more no-shows can't claim until the count is reviewed in the dashboard.
 - Cancel your own claim so the item goes back to Browse.
 - Report a listing for an unsafe, misleading, or spam listing. Reports are stored for you to review in the Supabase dashboard.
 - My activity: your claims, your listings, remove a listing, and edit your profile.
