@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Offcut",
+    "slug": "offcut-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "platforms": [
+      "android"
+    ],
+    "android": {
+      "package": "com.offcut.app",
+      "versionCode": 1
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
+}
