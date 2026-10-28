@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from './src/supabase';
 import { colors, radius, space } from './src/theme';
 import AuthScreen from './src/screens/AuthScreen';
@@ -16,6 +17,15 @@ const TABS = [
 ];
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
+
+function AppContent() {
+  const insets = useSafeAreaInsets();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('browse');
@@ -29,9 +39,12 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Keep content clear of the status bar at the top and the gesture bar at the bottom.
+  const screenStyle = [styles.safe, { paddingTop: insets.top }];
+
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.accent} />
       </View>
     );
@@ -39,17 +52,17 @@ export default function App() {
 
   if (!session) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={screenStyle}>
         <StatusBar style="dark" />
         <AuthScreen />
-      </SafeAreaView>
+      </View>
     );
   }
 
   const userId = session.user.id;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={screenStyle}>
       <StatusBar style="dark" />
       <View style={styles.header}>
         <View style={styles.brandRow}>
@@ -69,7 +82,7 @@ export default function App() {
         {tab === 'mine' && <MineScreen userId={userId} />}
       </View>
 
-      <View style={styles.nav}>
+      <View style={[styles.nav, { paddingBottom: insets.bottom + space.xs }]}>
         {TABS.map((t) => {
           const active = tab === t.key;
           return (
@@ -86,7 +99,7 @@ export default function App() {
           );
         })}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -117,7 +130,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.line,
-    paddingBottom: space.xs,
   },
   navBtn: { flex: 1, alignItems: 'center', paddingTop: space.sm },
   navPill: {
