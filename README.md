@@ -91,4 +91,5 @@ src/screens/BrowseScreen.js Search, filters, paged listings, claim, report
 src/screens/ListScreen.js   Post a listing with a photo
 src/screens/MineScreen.js   Profile, your claims and listings
 supabase/schema.sql         Tables, storage bucket, and row-level security policies
+supabase/admin.sql         Owner-only queries: review blocks, reports, and the scheduler (run in the dashboard)
 ```

@@ -163,13 +163,15 @@ create policy "claimer cancels claim"
   using (status = 'claimed' and claimed_by = auth.uid())
   with check (status = 'available' and claimed_by is null);
 
--- Listers manage their own listings (edit, remove).
+-- Listers can only remove their own unclaimed listings. Claimed listings are closed
+-- through mark_collected / mark_no_show below, so the counts can't be bypassed.
 drop policy if exists "listers manage own listings" on public.listings;
-create policy "listers manage own listings"
+drop policy if exists "listers remove own unclaimed listings" on public.listings;
+create policy "listers remove own unclaimed listings"
   on public.listings for update
   to authenticated
-  using (lister_id = auth.uid())
-  with check (lister_id = auth.uid());
+  using (lister_id = auth.uid() and status = 'available')
+  with check (lister_id = auth.uid() and status = 'removed' and claimed_by is null);
 
 -- ---------------------------------------------------------------------------
 -- Lister outcomes. Use these instead of editing status directly, so counts stay accurate.
