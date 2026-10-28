@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../supabase';
 import { AREAS, ROLES, priceLabel } from '../constants';
+import { colors, radius, shadow, space } from '../theme';
 
 function formatDeadline(iso) {
   if (!iso) return null;
@@ -19,17 +21,37 @@ function Chooser({ label, options, value, onChange }) {
     <View>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.options}>
-        {options.map((o) => (
-          <Pressable key={o} onPress={() => onChange(o)} style={[styles.opt, value === o && styles.optOn]}>
-            <Text style={[styles.optText, value === o && styles.optTextOn]}>{o}</Text>
-          </Pressable>
-        ))}
+        {options.map((o) => {
+          const on = value === o;
+          return (
+            <Pressable key={o} onPress={() => onChange(o)} style={[styles.opt, on && styles.optOn]}>
+              <Text style={[styles.optText, on && styles.optTextOn]}>{o}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
 }
 
-function ProfileForm({ userId }) {
+// A small coloured pill for listing and claim status.
+function Status({ tone, children }) {
+  const palette = STATUS_TONES[tone];
+  return (
+    <View style={[styles.status, { backgroundColor: palette.bg }]}>
+      <Text style={[styles.statusText, { color: palette.fg }]}>{children}</Text>
+    </View>
+  );
+}
+
+const STATUS_TONES = {
+  live: { bg: colors.accentSoft, fg: colors.accent },
+  claimed: { bg: '#fef3c7', fg: '#b45309' },
+  done: { bg: '#e7f6ec', fg: colors.ok },
+  muted: { bg: colors.line, fg: colors.muted },
+};
+
+function ProfileCard({ userId }) {
   const [profile, setProfile] = useState({ display_name: '', role: ROLES[1], trade: '', area: AREAS[0], completed_count: 0 });
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
@@ -70,18 +92,30 @@ function ProfileForm({ userId }) {
   }
 
   if (!open) {
+    const initial = (profile.display_name || '?').charAt(0).toUpperCase();
     return (
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{profile.display_name || 'Your profile'}</Text>
-        <Text style={styles.meta}>
-          {profile.role}
-          {profile.trade ? ` · ${profile.trade}` : ''} · {profile.area}
-        </Text>
-        <Text style={styles.meta}>
-          {profile.completed_count} completed {profile.completed_count === 1 ? 'collection' : 'collections'}
-        </Text>
-        <Pressable style={styles.smallBtn} onPress={() => setOpen(true)}>
-          <Text style={styles.smallBtnText}>Edit profile</Text>
+        <View style={styles.profileTop}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initial}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardTitle}>{profile.display_name || 'Your profile'}</Text>
+            <Text style={styles.meta}>
+              {profile.role}
+              {profile.trade ? ` · ${profile.trade}` : ''} · {profile.area}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.statRow}>
+          <Ionicons name="checkmark-done-outline" size={16} color={colors.ok} />
+          <Text style={styles.meta}>
+            {profile.completed_count} completed {profile.completed_count === 1 ? 'collection' : 'collections'}
+          </Text>
+        </View>
+        <Pressable style={styles.ghostBtn} onPress={() => setOpen(true)}>
+          <Ionicons name="create-outline" size={16} color={colors.text} />
+          <Text style={styles.ghostBtnText}>Edit profile</Text>
         </Pressable>
       </View>
     );
@@ -89,6 +123,7 @@ function ProfileForm({ userId }) {
 
   return (
     <View style={styles.card}>
+      <Text style={styles.cardTitle}>Edit profile</Text>
       <Text style={styles.label}>Display name (shown to others)</Text>
       <TextInput
         style={styles.input}
@@ -96,6 +131,7 @@ function ProfileForm({ userId }) {
         onChangeText={(v) => setProfile({ ...profile, display_name: v })}
         maxLength={40}
         placeholder="e.g. Dave (Joiner)"
+        placeholderTextColor={colors.muted}
       />
       <Chooser label="I am a" options={ROLES} value={profile.role} onChange={(v) => setProfile({ ...profile, role: v })} />
       {profile.role === 'Tradesperson' ? (
@@ -107,13 +143,19 @@ function ProfileForm({ userId }) {
             onChangeText={(v) => setProfile({ ...profile, trade: v })}
             maxLength={40}
             placeholder="e.g. Plumber, joiner, tiler"
+            placeholderTextColor={colors.muted}
           />
         </>
       ) : null}
       <Chooser label="Area" options={AREAS} value={profile.area} onChange={(v) => setProfile({ ...profile, area: v })} />
-      <Pressable style={[styles.submit, saving && styles.disabled]} onPress={save} disabled={saving}>
-        <Text style={styles.submitText}>{saving ? 'Saving…' : 'Save profile'}</Text>
-      </Pressable>
+      <View style={styles.btnRow}>
+        <Pressable style={styles.ghostBtn} onPress={() => setOpen(false)}>
+          <Text style={styles.ghostBtnText}>Cancel</Text>
+        </Pressable>
+        <Pressable style={[styles.primaryBtn, saving && styles.disabled]} onPress={save} disabled={saving}>
+          <Text style={styles.primaryBtnText}>{saving ? 'Saving…' : 'Save profile'}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -204,33 +246,46 @@ export default function MineScreen({ userId }) {
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
-      <ProfileForm userId={userId} />
+      <ProfileCard userId={userId} />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Text style={styles.heading}>Your claims</Text>
-      {claims.length === 0 ? <Text style={styles.empty}>No claims yet.</Text> : null}
+      <View style={styles.sectionHead}>
+        <Text style={styles.heading}>Your claims</Text>
+        <Text style={styles.count}>{claims.length}</Text>
+      </View>
+      {claims.length === 0 ? <Text style={styles.empty}>No claims yet. Items you claim appear here.</Text> : null}
       {claims.map((it) => (
         <View key={it.id} style={styles.card}>
           <Text style={styles.cardTitle}>{it.title}</Text>
-          {it.status === 'claimed' ? (
-            <>
-              <Text style={styles.claimed}>Arrange pickup with {it.lister?.display_name || 'the lister'}.</Text>
-              <Text style={styles.deadline}>Collect by {formatDeadline(it.collect_by)}</Text>
-              <Pressable style={styles.smallBtn} onPress={() => cancelClaim(it)}>
-                <Text style={styles.smallBtnText}>Cancel claim</Text>
-              </Pressable>
-            </>
-          ) : (
-            <Text style={styles.meta}>{it.status === 'collected' ? 'Collected' : 'No longer claimed'}</Text>
-          )}
           <Text style={styles.meta}>
             {priceLabel(it.price)} · {it.area}
           </Text>
+
+          {it.status === 'claimed' ? (
+            <>
+              <View style={styles.statusRow}>
+                <Status tone="claimed">Collect by {formatDeadline(it.collect_by)}</Status>
+              </View>
+              <Text style={styles.meta}>Arrange pickup with {it.lister?.display_name || 'the lister'}.</Text>
+              <Pressable style={styles.ghostBtn} onPress={() => cancelClaim(it)}>
+                <Text style={styles.ghostBtnText}>Cancel claim</Text>
+              </Pressable>
+            </>
+          ) : (
+            <View style={styles.statusRow}>
+              <Status tone={it.status === 'collected' ? 'done' : 'muted'}>
+                {it.status === 'collected' ? 'Collected' : 'No longer claimed'}
+              </Status>
+            </View>
+          )}
         </View>
       ))}
 
-      <Text style={styles.heading}>Your listings</Text>
+      <View style={styles.sectionHead}>
+        <Text style={styles.heading}>Your listings</Text>
+        <Text style={styles.count}>{listings.length}</Text>
+      </View>
       {listings.length === 0 ? <Text style={styles.empty}>Nothing listed yet.</Text> : null}
       {listings.map((it) => (
         <View key={it.id} style={styles.card}>
@@ -238,36 +293,42 @@ export default function MineScreen({ userId }) {
 
           {it.status === 'claimed' ? (
             <>
-              <Text style={styles.claimed}>Claimed by {it.claimer?.display_name || 'a member'}</Text>
-              <Text style={styles.deadline}>Collect by {formatDeadline(it.collect_by)}</Text>
+              <View style={styles.statusRow}>
+                <Status tone="claimed">Claimed · collect by {formatDeadline(it.collect_by)}</Status>
+              </View>
+              <Text style={styles.meta}>Claimed by {it.claimer?.display_name || 'a member'}</Text>
               <View style={styles.btnRow}>
                 <Pressable
-                  style={[styles.smallBtn, styles.primarySmall]}
+                  style={styles.primaryBtn}
                   onPress={() =>
                     recordOutcome(it, 'mark_collected', 'Mark as collected?', 'The claimer gets a completed collection on their profile.')
                   }
                 >
-                  <Text style={styles.primarySmallText}>Collected</Text>
+                  <Ionicons name="checkmark" size={16} color={colors.card} />
+                  <Text style={styles.primaryBtnText}>Collected</Text>
                 </Pressable>
                 <Pressable
-                  style={styles.smallBtn}
+                  style={styles.ghostBtn}
                   onPress={() =>
                     recordOutcome(it, 'mark_no_show', 'Claimer did not turn up?', 'The item goes back to Browse and the claimer gets a no-show.')
                   }
                 >
-                  <Text style={styles.smallBtnText}>No-show</Text>
+                  <Text style={styles.ghostBtnText}>No-show</Text>
                 </Pressable>
               </View>
             </>
           ) : (
-            <Text style={styles.meta}>
-              {it.status === 'collected' ? 'Collected' : 'Live'} · {priceLabel(it.price)}
-            </Text>
+            <View style={styles.statusRow}>
+              <Status tone={it.status === 'collected' ? 'done' : 'live'}>
+                {it.status === 'collected' ? 'Collected' : 'Live'} · {priceLabel(it.price)}
+              </Status>
+            </View>
           )}
 
           {it.status === 'available' ? (
-            <Pressable style={styles.smallBtn} onPress={() => remove(it)}>
-              <Text style={[styles.smallBtnText, { color: '#b91c1c' }]}>Remove</Text>
+            <Pressable style={styles.ghostBtn} onPress={() => remove(it)}>
+              <Ionicons name="trash-outline" size={16} color={colors.danger} />
+              <Text style={[styles.ghostBtnText, { color: colors.danger }]}>Remove</Text>
             </Pressable>
           ) : null}
         </View>
@@ -277,28 +338,95 @@ export default function MineScreen({ userId }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 16, paddingBottom: 32 },
-  heading: { fontSize: 16, fontWeight: '600', color: '#1d1d1b', marginTop: 16, marginBottom: 8 },
-  label: { fontSize: 14, color: '#6b6a66', marginTop: 12, marginBottom: 6 },
-  empty: { color: '#6b6a66', marginBottom: 8 },
-  error: { color: '#b91c1c', marginBottom: 8 },
-  card: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#e4e2dc', padding: 14, marginBottom: 10 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#1d1d1b' },
-  claimed: { color: '#15803d', fontWeight: '600', marginTop: 4 },
-  deadline: { color: '#b45309', fontWeight: '600', marginTop: 4 },
-  meta: { fontSize: 13, color: '#6b6a66', marginTop: 4 },
-  input: { borderWidth: 1, borderColor: '#e4e2dc', backgroundColor: '#f6f5f2', borderRadius: 10, padding: 12, fontSize: 16 },
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  opt: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: '#e4e2dc', backgroundColor: '#ffffff' },
-  optOn: { backgroundColor: '#c2410c', borderColor: '#c2410c' },
-  optText: { color: '#1d1d1b', fontSize: 14 },
-  optTextOn: { color: '#ffffff' },
-  btnRow: { flexDirection: 'row', gap: 8 },
-  smallBtn: { alignSelf: 'flex-start', marginTop: 10, borderWidth: 1, borderColor: '#e4e2dc', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  smallBtnText: { color: '#1d1d1b' },
-  primarySmall: { backgroundColor: '#c2410c', borderColor: '#c2410c' },
-  primarySmallText: { color: '#ffffff', fontWeight: '600' },
-  submit: { backgroundColor: '#c2410c', borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 16 },
-  submitText: { color: '#ffffff', fontWeight: '600' },
+  wrap: { padding: space.lg, paddingBottom: space.xl },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.lg, marginBottom: space.sm },
+  heading: { fontSize: 17, fontWeight: '700', color: colors.text },
+  count: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.muted,
+    backgroundColor: colors.line,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.sm,
+    paddingVertical: 2,
+    overflow: 'hidden',
+  },
+  label: { fontSize: 13, fontWeight: '600', color: colors.muted, marginTop: space.md, marginBottom: space.sm },
+  empty: { color: colors.muted, marginBottom: space.sm, fontSize: 14 },
+  error: { color: colors.danger, marginBottom: space.sm },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: space.lg,
+    marginBottom: space.md,
+    ...shadow,
+  },
+  profileTop: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.sm },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontSize: 18, fontWeight: '700', color: colors.accent },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+  meta: { fontSize: 13, color: colors.muted, marginTop: 2 },
+  statRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs, marginTop: space.xs },
+  statusRow: { flexDirection: 'row', marginTop: space.sm, marginBottom: space.xs },
+  status: { borderRadius: radius.pill, paddingHorizontal: space.md, paddingVertical: 4 },
+  statusText: { fontSize: 12, fontWeight: '700' },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: 11,
+    fontSize: 16,
+    color: colors.text,
+  },
+  options: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  opt: {
+    paddingHorizontal: space.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+  },
+  optOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  optText: { color: colors.text, fontSize: 14 },
+  optTextOn: { color: colors.card, fontWeight: '600' },
+  btnRow: { flexDirection: 'row', gap: space.sm, marginTop: space.md, alignItems: 'center' },
+  ghostBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+    alignSelf: 'flex-start',
+    marginTop: space.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: 9,
+  },
+  ghostBtnText: { color: colors.text, fontWeight: '600' },
+  primaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+    marginTop: space.md,
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+    paddingVertical: 10,
+  },
+  primaryBtnText: { color: colors.card, fontWeight: '600' },
   disabled: { opacity: 0.5 },
 });
