@@ -13,7 +13,8 @@
       "versionCode": 1
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      "expo-font"
     ]
   }
 }

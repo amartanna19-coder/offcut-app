@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../supabase';
+import { colors, radius, shadow, space } from '../theme';
 
 export default function AuthScreen() {
   const [mode, setMode] = useState('signin');
@@ -24,34 +26,54 @@ export default function AuthScreen() {
     }
   }
 
+  const signin = mode === 'signin';
+
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>Offcut</Text>
-      <Text style={styles.lead}>Free local exchange for spare building materials.</Text>
+      <View style={styles.brand}>
+        <View style={styles.logo}>
+          <Ionicons name="construct-outline" size={28} color={colors.card} />
+        </View>
+        <Text style={styles.title}>Offcut</Text>
+        <Text style={styles.lead}>Free local exchange for spare building materials.</Text>
+      </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password (6+ characters)"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+      <View style={styles.card}>
+        <Text style={styles.heading}>{signin ? 'Welcome back' : 'Create your account'}</Text>
 
-      <Pressable style={[styles.primary, busy && styles.disabled]} onPress={submit} disabled={busy}>
-        <Text style={styles.primaryText}>{mode === 'signin' ? 'Sign in' : 'Create account'}</Text>
-      </Pressable>
+        <View style={styles.field}>
+          <Ionicons name="mail-outline" size={18} color={colors.muted} style={styles.fieldIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={colors.muted}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+        </View>
 
-      <Pressable onPress={() => setMode(mode === 'signin' ? 'signup' : 'signin')}>
+        <View style={styles.field}>
+          <Ionicons name="lock-closed-outline" size={18} color={colors.muted} style={styles.fieldIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Password (6+ characters)"
+            placeholderTextColor={colors.muted}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+        </View>
+
+        <Pressable style={[styles.primary, busy && styles.disabled]} onPress={submit} disabled={busy}>
+          <Text style={styles.primaryText}>{busy ? 'Please wait…' : signin ? 'Sign in' : 'Create account'}</Text>
+        </Pressable>
+      </View>
+
+      <Pressable style={styles.switchRow} onPress={() => setMode(signin ? 'signup' : 'signin')}>
         <Text style={styles.switch}>
-          {mode === 'signin' ? 'New here? Create an account' : 'Have an account? Sign in'}
+          {signin ? 'New here? Create an account' : 'Have an account? Sign in'}
         </Text>
       </Pressable>
     </View>
@@ -59,20 +81,43 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#f6f5f2' },
-  title: { fontSize: 28, fontWeight: '700', color: '#1d1d1b', marginBottom: 4 },
-  lead: { fontSize: 15, color: '#6b6a66', marginBottom: 24 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e4e2dc',
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-    fontSize: 16,
+  wrap: { flex: 1, padding: space.xl, justifyContent: 'center', backgroundColor: colors.bg },
+  brand: { alignItems: 'center', marginBottom: space.xl },
+  logo: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.lg,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space.md,
   },
-  primary: { backgroundColor: '#c2410c', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 4 },
-  primaryText: { color: '#ffffff', fontWeight: '600', fontSize: 16 },
+  title: { fontSize: 28, fontWeight: '700', color: colors.text },
+  lead: { fontSize: 15, color: colors.muted, textAlign: 'center', marginTop: space.xs, paddingHorizontal: space.md },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: space.lg,
+    ...shadow,
+  },
+  heading: { fontSize: 17, fontWeight: '600', color: colors.text, marginBottom: space.md },
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    backgroundColor: colors.bg,
+    paddingHorizontal: space.md,
+    marginBottom: space.md,
+  },
+  fieldIcon: { marginRight: space.sm },
+  input: { flex: 1, paddingVertical: 12, fontSize: 16, color: colors.text },
+  primary: { backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center', marginTop: space.xs },
+  primaryText: { color: colors.card, fontWeight: '600', fontSize: 16 },
   disabled: { opacity: 0.5 },
-  switch: { color: '#c2410c', textAlign: 'center', marginTop: 16 },
+  switchRow: { marginTop: space.lg, alignItems: 'center' },
+  switch: { color: colors.accent, fontWeight: '600' },
 });

@@ -13,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../supabase';
 import {
   CATEGORIES,
@@ -23,6 +24,7 @@ import {
   photoUrl,
   priceLabel,
 } from '../constants';
+import { colors, radius, shadow, space } from '../theme';
 
 export default function BrowseScreen({ userId }) {
   const [items, setItems] = useState([]);
@@ -38,6 +40,7 @@ export default function BrowseScreen({ userId }) {
   const requestRef = useRef(0);
 
   const sort = SORTS.find((s) => s.key === sortKey);
+  const filtering = category !== 'All' || search !== '';
 
   // Debounce typing so we don't query on every keystroke.
   useEffect(() => {
@@ -89,6 +92,11 @@ export default function BrowseScreen({ userId }) {
     if (!loading && hasMore) fetchPage(pageRef.current + 1, false);
   }
 
+  function clearFilters() {
+    setQuery('');
+    setCategory('All');
+  }
+
   async function claim(item) {
     // Only succeeds if the listing is still available and the user isn't the lister.
     // Row-level security enforces the same rules on the server.
@@ -118,7 +126,7 @@ export default function BrowseScreen({ userId }) {
     }
     Alert.alert(
       'Claimed',
-      'Collect within 48 hours, or the claim expires and counts as a missed collection. Find it under My activity.'
+      'Collect within 48 hours, or the claim expires and counts as a missed collection. Find it under Activity.'
     );
     refresh();
   }
@@ -150,31 +158,121 @@ export default function BrowseScreen({ userId }) {
     }
   }
 
+  function renderCard({ item }) {
+    const photo = photoUrl(item.photo_path);
+    const mine = item.lister_id === userId;
+    const free = Number(item.price) === 0;
+    const lister = item.lister?.display_name || 'a member';
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardTop}>
+          {photo ? (
+            <Image source={{ uri: photo }} style={styles.photo} />
+          ) : (
+            <View style={[styles.photo, styles.photoPlaceholder]}>
+              <Text style={styles.emoji}>{EMOJI[item.category] || '📦'}</Text>
+            </View>
+          )}
+
+          <View style={styles.cardBody}>
+            <View style={styles.titleRow}>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {item.title}
+              </Text>
+              <View style={[styles.pricePill, free && styles.pricePillFree]}>
+                <Text style={[styles.priceText, free && styles.priceTextFree]}>{priceLabel(item.price)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.tagRow}>
+              <Text style={styles.tag}>{item.category}</Text>
+              <Text style={styles.tag}>{item.condition}</Text>
+            </View>
+
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={13} color={colors.muted} />
+              <Text style={styles.meta}>{item.area}</Text>
+            </View>
+          </View>
+        </View>
+
+        {item.notes ? (
+          <Text style={styles.notes} numberOfLines={2}>
+            {item.notes}
+          </Text>
+        ) : null}
+
+        <View style={styles.footer}>
+          <View style={styles.lister}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{lister.charAt(0).toUpperCase()}</Text>
+            </View>
+            <Text style={styles.meta} numberOfLines={1}>
+              {mine ? 'Your listing' : lister}
+            </Text>
+          </View>
+        </View>
+
+        {!mine ? (
+          <View style={styles.actions}>
+            <Pressable style={styles.claimBtn} onPress={() => confirmClaim(item)}>
+              <Ionicons name="hand-left-outline" size={16} color={colors.card} />
+              <Text style={styles.claimText}>{free ? 'Claim for free' : `Claim for ${priceLabel(item.price)}`}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.reportBtn}
+              onPress={() => setReportingId(item.id)}
+              accessibilityLabel="Report this listing"
+            >
+              <Ionicons name="flag-outline" size={18} color={colors.muted} />
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.wrap}>
-      <TextInput
-        style={styles.search}
-        placeholder="Search, e.g. oak, tiles, copper"
-        value={query}
-        onChangeText={setQuery}
-        returnKeyType="search"
-        clearButtonMode="while-editing"
-      />
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={18} color={colors.muted} style={{ marginRight: space.sm }} />
+        <TextInput
+          style={styles.search}
+          placeholder="Search oak, tiles, copper…"
+          placeholderTextColor={colors.muted}
+          value={query}
+          onChangeText={setQuery}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+        />
+      </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow}>
-        {['All', ...CATEGORIES].map((c) => (
-          <Pressable key={c} onPress={() => setCategory(c)} style={[styles.chip, category === c && styles.chipOn]}>
-            <Text style={[styles.chipText, category === c && styles.chipTextOn]}>{c}</Text>
-          </Pressable>
-        ))}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow} contentContainerStyle={styles.chipsContent}>
+        {['All', ...CATEGORIES].map((c) => {
+          const on = category === c;
+          return (
+            <Pressable key={c} onPress={() => setCategory(c)} style={[styles.chip, on && styles.chipOn]}>
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>{c}</Text>
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       <View style={styles.sortRow}>
-        {SORTS.map((s) => (
-          <Pressable key={s.key} onPress={() => setSortKey(s.key)}>
-            <Text style={[styles.sortText, sortKey === s.key && styles.sortOn]}>{s.label}</Text>
-          </Pressable>
-        ))}
+        <Text style={styles.count}>
+          {items.length} {items.length === 1 ? 'listing' : 'listings'}
+        </Text>
+        <View style={styles.sortGroup}>
+          {SORTS.map((s) => {
+            const on = sortKey === s.key;
+            return (
+              <Pressable key={s.key} onPress={() => setSortKey(s.key)} style={styles.sortBtn}>
+                <Text style={[styles.sortText, on && styles.sortOn]}>{s.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -182,60 +280,38 @@ export default function BrowseScreen({ userId }) {
       <FlatList
         data={items}
         keyExtractor={(i) => String(i.id)}
-        refreshControl={<RefreshControl refreshing={loading && items.length === 0} onRefresh={refresh} />}
+        refreshControl={
+          <RefreshControl refreshing={loading && items.length === 0} onRefresh={refresh} tintColor={colors.accent} />
+        }
         contentContainerStyle={styles.list}
         onEndReached={loadMore}
         onEndReachedThreshold={0.4}
         ListEmptyComponent={
-          loading ? null : <Text style={styles.empty}>No matching listings nearby. Try another search or category.</Text>
-        }
-        ListFooterComponent={loading && items.length > 0 ? <ActivityIndicator style={{ margin: 16 }} /> : null}
-        renderItem={({ item }) => {
-          const photo = photoUrl(item.photo_path);
-          const mine = item.lister_id === userId;
-          return (
-            <View style={styles.card}>
-              <View style={styles.row}>
-                {photo ? (
-                  <Image source={{ uri: photo }} style={styles.photo} />
-                ) : (
-                  <View style={styles.thumb}>
-                    <Text style={styles.emoji}>{EMOJI[item.category] || '📦'}</Text>
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.meta}>
-                    {item.area} · {item.condition}
-                  </Text>
-                  <Text style={styles.meta}>Listed by {item.lister?.display_name || 'a member'}</Text>
-                  <Text style={styles.price}>{priceLabel(item.price)}</Text>
-                </View>
-              </View>
-              {item.notes ? <Text style={styles.meta}>{item.notes}</Text> : null}
-
-              {mine ? (
-                <Text style={styles.meta}>Your listing</Text>
-              ) : (
-                <View style={styles.actions}>
-                  <Pressable style={[styles.claimBtn, { flex: 1 }]} onPress={() => confirmClaim(item)}>
-                    <Text style={styles.claimText}>
-                      {Number(item.price) === 0 ? 'Claim for free' : `Claim for ${priceLabel(item.price)}`}
-                    </Text>
-                  </Pressable>
-                  <Pressable style={styles.reportBtn} onPress={() => setReportingId(item.id)}>
-                    <Text style={styles.reportText}>Report</Text>
-                  </Pressable>
-                </View>
-              )}
+          loading ? null : (
+            <View style={styles.empty}>
+              <Ionicons name="cube-outline" size={48} color={colors.line} />
+              <Text style={styles.emptyTitle}>Nothing here yet</Text>
+              <Text style={styles.emptyText}>
+                {filtering
+                  ? 'No listings match that search. Try a different word or category.'
+                  : 'No spare materials listed nearby yet. Be the first to post one.'}
+              </Text>
+              {filtering ? (
+                <Pressable style={styles.emptyBtn} onPress={clearFilters}>
+                  <Text style={styles.emptyBtnText}>Clear filters</Text>
+                </Pressable>
+              ) : null}
             </View>
-          );
-        }}
+          )
+        }
+        ListFooterComponent={loading && items.length > 0 ? <ActivityIndicator style={{ margin: space.lg }} color={colors.accent} /> : null}
+        renderItem={renderCard}
       />
 
       <Modal visible={reportingId !== null} transparent animationType="fade" onRequestClose={() => setReportingId(null)}>
         <Pressable style={styles.backdrop} onPress={() => setReportingId(null)}>
           <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Why are you reporting this?</Text>
             {REPORT_REASONS.map((r) => (
               <Pressable key={r} style={styles.sheetRow} onPress={() => report(r)}>
@@ -243,7 +319,7 @@ export default function BrowseScreen({ userId }) {
               </Pressable>
             ))}
             <Pressable style={styles.sheetRow} onPress={() => setReportingId(null)}>
-              <Text style={[styles.sheetText, { color: '#6b6a66' }]}>Cancel</Text>
+              <Text style={[styles.sheetText, { color: colors.muted }]}>Cancel</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -254,51 +330,138 @@ export default function BrowseScreen({ userId }) {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1 },
-  search: {
-    marginHorizontal: 16,
-    marginTop: 12,
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: space.lg,
+    marginTop: space.md,
     borderWidth: 1,
-    borderColor: '#e4e2dc',
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 10,
-    fontSize: 16,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
   },
-  chipsRow: { paddingHorizontal: 16, paddingVertical: 10, flexGrow: 0 },
+  search: { flex: 1, paddingVertical: 11, fontSize: 16, color: colors.text },
+  chipsRow: { flexGrow: 0, marginTop: space.md },
+  chipsContent: { paddingHorizontal: space.lg, gap: space.sm },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingHorizontal: space.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: '#e4e2dc',
-    backgroundColor: '#ffffff',
-    marginRight: 8,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
   },
-  chipOn: { backgroundColor: '#c2410c', borderColor: '#c2410c' },
-  chipText: { color: '#1d1d1b', fontSize: 14 },
-  chipTextOn: { color: '#ffffff' },
-  sortRow: { flexDirection: 'row', gap: 16, paddingHorizontal: 16, marginBottom: 6 },
-  sortText: { color: '#6b6a66', fontSize: 13 },
-  sortOn: { color: '#c2410c', fontWeight: '600' },
-  list: { padding: 16, paddingTop: 4 },
-  card: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#e4e2dc', padding: 14, marginBottom: 12 },
-  row: { flexDirection: 'row', gap: 12, marginBottom: 6 },
-  photo: { width: 72, height: 72, borderRadius: 8, backgroundColor: '#e4e2dc' },
-  thumb: { width: 72, height: 72, borderRadius: 8, backgroundColor: '#e4e2dc', alignItems: 'center', justifyContent: 'center' },
-  emoji: { fontSize: 28 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#1d1d1b' },
-  meta: { fontSize: 13, color: '#6b6a66', marginTop: 2 },
-  price: { fontSize: 15, fontWeight: '700', color: '#1d1d1b', marginTop: 4 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  claimBtn: { backgroundColor: '#c2410c', borderRadius: 10, padding: 12, alignItems: 'center' },
-  claimText: { color: '#ffffff', fontWeight: '600' },
-  reportBtn: { borderWidth: 1, borderColor: '#e4e2dc', borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
-  reportText: { color: '#6b6a66' },
-  empty: { textAlign: 'center', color: '#6b6a66', marginTop: 32, paddingHorizontal: 24 },
-  error: { color: '#b91c1c', paddingHorizontal: 16, marginBottom: 8 },
+  chipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { color: colors.text, fontSize: 14 },
+  chipTextOn: { color: colors.card, fontWeight: '600' },
+  sortRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: space.lg,
+    marginTop: space.md,
+    marginBottom: space.sm,
+  },
+  count: { fontSize: 13, color: colors.muted },
+  sortGroup: { flexDirection: 'row', gap: space.sm },
+  sortBtn: { paddingVertical: 2 },
+  sortText: { color: colors.muted, fontSize: 13 },
+  sortOn: { color: colors.accent, fontWeight: '600' },
+  list: { paddingHorizontal: space.lg, paddingBottom: space.xl },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: space.md,
+    marginBottom: space.md,
+    ...shadow,
+  },
+  cardTop: { flexDirection: 'row', gap: space.md },
+  photo: { width: 96, height: 96, borderRadius: radius.md, backgroundColor: colors.line },
+  photoPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft },
+  emoji: { fontSize: 34 },
+  cardBody: { flex: 1, gap: 4 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: space.sm },
+  cardTitle: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
+  pricePill: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+  },
+  pricePillFree: { backgroundColor: '#e7f6ec' },
+  priceText: { fontSize: 13, fontWeight: '700', color: colors.accent },
+  priceTextFree: { color: colors.ok },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tag: {
+    fontSize: 12,
+    color: colors.muted,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    overflow: 'hidden',
+  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  meta: { fontSize: 13, color: colors.muted },
+  notes: { fontSize: 13, color: colors.muted, marginTop: space.sm, lineHeight: 18 },
+  footer: { marginTop: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: colors.line },
+  lister: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  avatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontSize: 11, fontWeight: '700', color: colors.text },
+  actions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
+  claimBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    paddingVertical: 11,
+  },
+  claimText: { color: colors.card, fontWeight: '600', fontSize: 15 },
+  reportBtn: {
+    width: 44,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  empty: { alignItems: 'center', paddingTop: space.xl * 2, paddingHorizontal: space.xl, gap: space.sm },
+  emptyTitle: { fontSize: 17, fontWeight: '600', color: colors.text, marginTop: space.sm },
+  emptyText: { fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20 },
+  emptyBtn: {
+    marginTop: space.md,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+    paddingVertical: 9,
+  },
+  emptyBtnText: { color: colors.accent, fontWeight: '600' },
+  error: { color: colors.danger, paddingHorizontal: space.lg, marginBottom: space.sm },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#ffffff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 8, paddingBottom: 24 },
-  sheetTitle: { fontSize: 15, fontWeight: '600', color: '#1d1d1b', padding: 12 },
-  sheetRow: { padding: 14, borderTopWidth: 1, borderTopColor: '#f0efeb' },
-  sheetText: { fontSize: 16, color: '#1d1d1b' },
+  sheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    padding: space.sm,
+    paddingBottom: space.xl,
+  },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.line, marginVertical: space.sm },
+  sheetTitle: { fontSize: 15, fontWeight: '600', color: colors.text, padding: space.md },
+  sheetRow: { padding: space.md, borderTopWidth: 1, borderTopColor: colors.line },
+  sheetText: { fontSize: 16, color: colors.text },
 });

@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './src/supabase';
+import { colors, radius, space } from './src/theme';
 import AuthScreen from './src/screens/AuthScreen';
 import BrowseScreen from './src/screens/BrowseScreen';
 import ListScreen from './src/screens/ListScreen';
 import MineScreen from './src/screens/MineScreen';
 
 const TABS = [
-  { key: 'browse', label: 'Browse' },
-  { key: 'list', label: 'List item' },
-  { key: 'mine', label: 'My activity' },
+  { key: 'browse', label: 'Browse', icon: 'search-outline', activeIcon: 'search' },
+  { key: 'list', label: 'List item', icon: 'add-circle-outline', activeIcon: 'add-circle' },
+  { key: 'mine', label: 'Activity', icon: 'person-outline', activeIcon: 'person' },
 ];
 
 export default function App() {
@@ -30,7 +32,7 @@ export default function App() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -38,7 +40,7 @@ export default function App() {
   if (!session) {
     return (
       <SafeAreaView style={styles.safe}>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
         <AuthScreen />
       </SafeAreaView>
     );
@@ -48,10 +50,17 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
       <View style={styles.header}>
-        <Text style={styles.title}>Offcut</Text>
-        <Text style={styles.subtitle}>Spare building materials, Ruislip</Text>
+        <View style={styles.brandRow}>
+          <View style={styles.logo}>
+            <Ionicons name="construct-outline" size={18} color={colors.card} />
+          </View>
+          <View>
+            <Text style={styles.title}>Offcut</Text>
+            <Text style={styles.subtitle}>Spare building materials, Ruislip</Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.main}>
@@ -61,25 +70,64 @@ export default function App() {
       </View>
 
       <View style={styles.nav}>
-        {TABS.map((t) => (
-          <TouchableOpacity key={t.key} style={styles.navBtn} onPress={() => setTab(t.key)}>
-            <Text style={[styles.navText, tab === t.key && styles.navActive]}>{t.label}</Text>
-          </TouchableOpacity>
-        ))}
+        {TABS.map((t) => {
+          const active = tab === t.key;
+          return (
+            <Pressable key={t.key} style={styles.navBtn} onPress={() => setTab(t.key)} accessibilityRole="tab">
+              <View style={[styles.navPill, active && styles.navPillOn]}>
+                <Ionicons
+                  name={active ? t.activeIcon : t.icon}
+                  size={22}
+                  color={active ? colors.accent : colors.muted}
+                />
+              </View>
+              <Text style={[styles.navText, active && styles.navActive]}>{t.label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f6f5f2' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f6f5f2' },
-  header: { padding: 16, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e4e2dc' },
-  title: { fontSize: 20, fontWeight: '700', color: '#1d1d1b' },
-  subtitle: { fontSize: 13, color: '#6b6a66' },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  header: {
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  logo: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 18, fontWeight: '700', color: colors.text },
+  subtitle: { fontSize: 12, color: colors.muted },
   main: { flex: 1 },
-  nav: { flexDirection: 'row', backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#e4e2dc' },
-  navBtn: { flex: 1, paddingVertical: 14, alignItems: 'center' },
-  navText: { color: '#6b6a66', fontSize: 14 },
-  navActive: { color: '#c2410c', fontWeight: '600' },
+  nav: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingBottom: space.xs,
+  },
+  navBtn: { flex: 1, alignItems: 'center', paddingTop: space.sm },
+  navPill: {
+    width: 56,
+    height: 30,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navPillOn: { backgroundColor: colors.accentSoft },
+  navText: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  navActive: { color: colors.accent, fontWeight: '600' },
 });
