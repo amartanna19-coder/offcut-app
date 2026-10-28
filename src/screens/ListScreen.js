@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../supabase';
 import { AREAS, CATEGORIES, CONDITIONS, HAZARD_CONFIRM, HAZARD_WARNING, MATERIAL_AGES } from '../constants';
 import { colors, radius, shadow, space } from '../theme';
-import { suggestFromPhoto } from '../photoSuggest';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
@@ -37,7 +36,6 @@ export default function ListScreen({ userId, onPosted }) {
   const [hazardChecked, setHazardChecked] = useState(false);
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState(null); // { uri, width, height }
-  const [suggestion, setSuggestion] = useState(null); // { category, confidence } from the photo
   const [busy, setBusy] = useState(false);
 
   // Older or unclear materials need the warning and a confirmation before they can be posted.
@@ -55,14 +53,7 @@ export default function ListScreen({ userId, onPosted }) {
       allowsEditing: true,
       aspect: [1, 1],
     });
-    if (res.canceled || !res.assets?.[0]) return;
-
-    const chosen = res.assets[0];
-    setPhoto(chosen);
-    setSuggestion(null);
-    // Runs on the phone. Returns null in Expo Go, or when the photo isn't clear enough.
-    const guess = await suggestFromPhoto(chosen.uri);
-    if (guess) setSuggestion(guess);
+    if (!res.canceled && res.assets?.[0]) setPhoto(res.assets[0]);
   }
 
   // Uploads the photo and returns its storage path, or throws.
@@ -151,25 +142,6 @@ export default function ListScreen({ userId, onPosted }) {
           </View>
         )}
       </Pressable>
-
-      {suggestion && suggestion.category !== category ? (
-        <View style={styles.suggest}>
-          <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
-          <Text style={styles.suggestText}>Looks like {suggestion.category}. Use that category?</Text>
-          <Pressable
-            style={styles.suggestBtn}
-            onPress={() => {
-              setCategory(suggestion.category);
-              setSuggestion(null);
-            }}
-          >
-            <Text style={styles.suggestBtnText}>Use</Text>
-          </Pressable>
-          <Pressable onPress={() => setSuggestion(null)} accessibilityLabel="Dismiss suggestion">
-            <Ionicons name="close" size={18} color={colors.muted} />
-          </Pressable>
-        </View>
-      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.label}>What is it?</Text>
@@ -329,17 +301,5 @@ const styles = StyleSheet.create({
     marginTop: space.lg,
   },
   submitText: { color: colors.card, fontWeight: '600', fontSize: 16 },
-  suggest: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    marginTop: space.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.accentSoft,
-    padding: space.md,
-  },
-  suggestText: { flex: 1, fontSize: 13, color: colors.text },
-  suggestBtn: { backgroundColor: colors.accent, borderRadius: radius.sm, paddingHorizontal: space.md, paddingVertical: 5 },
-  suggestBtnText: { color: colors.card, fontWeight: '600', fontSize: 13 },
   disabled: { opacity: 0.5 },
 });
