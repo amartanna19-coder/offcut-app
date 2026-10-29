@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../supabase';
 import { colors, radius, shadow, space } from '../theme';
@@ -31,9 +31,7 @@ export default function AuthScreen() {
   return (
     <View style={styles.wrap}>
       <View style={styles.brand}>
-        <View style={styles.logo}>
-          <Ionicons name="construct-outline" size={28} color={colors.card} />
-        </View>
+        <Image source={require('../../assets/icon.png')} style={styles.logo} />
         <Text style={styles.title}>Offcut</Text>
         <Text style={styles.lead}>Free local exchange for spare building materials.</Text>
       </View>
@@ -83,15 +81,7 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   wrap: { flex: 1, padding: space.xl, justifyContent: 'center', backgroundColor: colors.bg },
   brand: { alignItems: 'center', marginBottom: space.xl },
-  logo: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.lg,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: space.md,
-  },
+  logo: { width: 64, height: 64, borderRadius: radius.lg, marginBottom: space.md },
   title: { fontSize: 28, fontWeight: '700', color: colors.text },
   lead: { fontSize: 15, color: colors.muted, textAlign: 'center', marginTop: space.xs, paddingHorizontal: space.md },
   card: {

@@ -4,13 +4,17 @@
     "slug": "offcut-app",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "platforms": [
       "android"
     ],
     "android": {
       "package": "com.offcut.app",
-      "versionCode": 1
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#c2410c"
+      }
     },
     "plugins": [
       "expo-asset",
@@ -22,7 +26,21 @@
             "kotlinVersion": "1.9.25"
           }
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#f6f5f2",
+          "image": "./assets/splash.png",
+          "imageWidth": 200
+        }
       ]
-    ]
+    ],
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f6f5f2"
+    }
   }
 }

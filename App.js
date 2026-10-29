@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -66,9 +66,7 @@ function AppContent() {
       <StatusBar style="dark" />
       <View style={styles.header}>
         <View style={styles.brandRow}>
-          <View style={styles.logo}>
-            <Ionicons name="construct-outline" size={18} color={colors.card} />
-          </View>
+          <Image source={require('./assets/icon.png')} style={styles.logo} />
           <View>
             <Text style={styles.title}>Offcut</Text>
             <Text style={styles.subtitle}>Spare building materials, Ruislip</Text>
@@ -114,14 +112,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  logo: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.sm,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  logo: { width: 34, height: 34, borderRadius: radius.sm },
   title: { fontSize: 18, fontWeight: '700', color: colors.text },
   subtitle: { fontSize: 12, color: colors.muted },
   main: { flex: 1 },
